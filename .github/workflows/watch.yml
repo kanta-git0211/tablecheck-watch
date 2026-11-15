@@ -1,0 +1,32 @@
+name: tablecheck-watch
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"    # 5分おき（GitHub Actions の最短間隔）
+  workflow_dispatch:          # 手動実行ボタン
+    inputs:
+      test_notify:
+        description: "テスト通知も送る"
+        type: boolean
+        default: true
+
+concurrency:
+  group: watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install playwright==1.48.0
+      - run: python -m playwright install --with-deps chromium
+      - run: python watch.py
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          PARTY: "2"
+          TEST_NOTIFY: ${{ github.event_name == 'workflow_dispatch' && inputs.test_notify && '1' || '0' }}

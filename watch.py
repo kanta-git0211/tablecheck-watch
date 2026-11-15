@@ -26,22 +26,24 @@ READ_WEEK = r"""
   const months = [...document.querySelectorAll('#timetable-panel th.month')]
       .flatMap(th => Array(parseInt(th.getAttribute('colspan')||'1')).fill(th.textContent.trim()));
   const days = heads.map((td,i) => (months[i]||'') + td.querySelector('.date-num').textContent.trim() + '日');
-  const open = [];
-  heads.forEach((td,i) => { if (!td.classList.contains('day-closed')) open.push(days[i]); });
-  // 時間枠の行（見出し行・ダミー行以外）で × 以外のマス
+  // 営業日の列（day-closed が付いていない日）。行のマス数が7未満のときの日付合わせに使う
+  const openDays = days.filter((d,i) => !heads[i].classList.contains('day-closed'));
+  // 時間枠の行で、×(not_available) でも -(closed) でもないマス = 空き
   const slots = [];
-  const rows = [...document.querySelectorAll('#timetable-panel tbody tr')]
-      .filter(tr => tr.id !== 'timetable-body' && !tr.classList.contains('mobile_week_change')
-                    && !tr.classList.contains('timetable-fake-row') && tr.querySelector('td'));
-  rows.forEach(tr => {
-    const label = (tr.querySelector('th')||{}).textContent || '';
-    [...tr.querySelectorAll('td')].forEach((td,i) => {
-      if (!td.className.includes('not_available') && td.textContent.trim() !== '')
-        slots.push((days[i]||'?') + ' ' + label.trim() + ' ' + td.textContent.trim());
+  document.querySelectorAll('#timetable-panel tr.timetable-row').forEach(tr => {
+    const label = (tr.querySelector('th.time-left')||{textContent:''}).textContent.trim();
+    const tds = [...tr.querySelectorAll('td')];
+    const map = tds.length === days.length ? days
+              : tds.length === openDays.length ? openDays : null;
+    tds.forEach((td,i) => {
+      const c = td.className;
+      if (c.includes('not_available') || /\bclosed\b/.test(c)) return;
+      const d = map ? map[i] : (days[0] + 'の週');
+      slots.push(d + ' ' + label);
     });
   });
   const next = document.querySelector('#timetable-panel th.time-right a.next-week');
-  return {ok:true, first: days[0], open, slots, hasNext: !!next && getComputedStyle(next).display !== 'none'};
+  return {ok:true, first: days[0], open: [], slots, hasNext: !!next && getComputedStyle(next).display !== 'none'};
 }
 """
 
